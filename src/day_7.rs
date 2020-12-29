@@ -3,9 +3,9 @@ use std::io::BufRead;
 use std::collections::HashMap;
 
 type Graph = HashMap<String, Vec<String>>;
-type Memory = HashMap<String, bool>;
+type BoolMemory = HashMap<String, bool>;
 
-fn dfs(node: &str, graph: &Graph, mem: & mut Memory) -> bool{
+fn dfs(node: &str, graph: &Graph, mem: & mut BoolMemory) -> bool{
     if let Some(&result) = mem.get(node) {
         return result;
     }
@@ -23,7 +23,7 @@ fn dfs(node: &str, graph: &Graph, mem: & mut Memory) -> bool{
 
 pub fn part_1() {
     let file = util::read_input();
-    let mut mem: Memory = HashMap::new();
+    let mut mem: BoolMemory = HashMap::new();
     let mut graph: Graph = HashMap::new();
     for line in file.lines().map(|result| result.unwrap()) {
         let split: Vec<&str> = line.split(" ").collect();
@@ -56,37 +56,62 @@ pub fn part_1() {
     println!("{}", answer);
 }
 
+struct Edge {
+    to_node: String,
+    weight: i32
+}
+type WeightedGraph = HashMap<String, Vec<Edge>>;
+type IntMemory = HashMap<String, i32>;
+
+fn count_bags(node: &str, graph: &WeightedGraph, mem: & mut IntMemory) -> i32{
+    if let Some(&result) = mem.get(node) {
+        return result;
+    }
+    if let Some(edges) = graph.get(node) {
+        let mut count = 0;
+        for e in edges {
+            count += count_bags(&e.to_node, graph, mem) * e.weight + e.weight;
+        }
+        mem.insert(node.to_owned(), count);
+        count
+    } else {
+        return 0;
+    }
+}
+
 pub fn part_2() {
     let file = util::read_input();
-    let mut yes_map = HashMap::new();
-    let mut num_members = 0;
-    let mut answer = 0;
+    let mut mem: IntMemory = HashMap::new();
+    let mut graph: WeightedGraph = HashMap::new();
     for line in file.lines().map(|result| result.unwrap()) {
-        if line.len() == 0 {
-            for val in yes_map.values() {
-                if *val == num_members {
-                    answer += 1;
-                }
-            }
-            yes_map.clear();
-            num_members = 0;
+        let split: Vec<&str> = line.split(" ").collect();
+        let from_bag = &split[0..2].join("");
+        if split[4] == "no" {
+            // Example:
+            // pale yellow bags contain no other bags.
+            continue;
         } else {
-            for c in line.chars() {
-                if let Some(count_ref) = yes_map.get_mut(&c) {
-                    *count_ref += 1;
-                } else {
-                    yes_map.insert(c, 1);
-                }
+            // Example:
+            // 0     1    2    3       4 5     6       7     8 9     10   11
+            // shiny lime bags contain 3 muted magenta bags, 3 clear cyan bags.
+            let mut i = 4;
+            let mut to_bags: Vec<Edge> = Vec::new();
+            while i < split.len() {
+                // 3 muted magenta bags,
+                // i +1    +2      +3
+                let amount: i32 = split[i].parse().unwrap();
+                let to_bag = &split[i+1..i+3].join("");
+                let edge = Edge {
+                    to_node: to_bag.to_owned(),
+                    weight: amount,
+                };
+                to_bags.push(edge);
+                i += 4;
             }
-            num_members += 1;
+            graph.insert(from_bag.to_owned(), to_bags);
         }
     }
-
-    for val in yes_map.values() {
-        if *val == num_members {
-            answer += 1;
-        }
-    }
+    let answer = count_bags("shinygold", &graph, & mut mem);
     println!("{}", answer);
 }
 
